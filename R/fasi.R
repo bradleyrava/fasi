@@ -125,6 +125,8 @@ predict.fasi <- function(fasi_object, test_data, alpha_1, alpha_2, rscore_plus=T
 
   ######################
 
+  ## Pull out the calibrate data
+  calibrate_data <- fasi_object$calibrate_data
 
   ## Make sure the test data set is a data frame
   if (is.data.frame(test_data) == F) {

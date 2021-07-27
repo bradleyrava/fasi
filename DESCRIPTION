@@ -1,0 +1,22 @@
+Package: fasi
+Title: Implements the Fair Adjusted Selective Inference (FASI) procedure
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Bradley",
+           family = "Rava",
+           role = c("aut", "cre"),
+           email = "brava@marshall.usc.edu")
+Description: This package implements the Fair Adjusted Selective Inference (FASI) procedure as described in the paper "A Fairness-Adjusted Selective Inference Framework ForClassification" By: Bradley Rava, Wen Sun, Gareth James and Xin Tong (2021). The package includes a function that preforms the FASI procedure and returns both the r-scores and classification for new observations.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.0
+Depends:
+	R (>= 3.5.0)
+Suggests: 
+    testthat,
+    knitr,
+    rmarkdown,
+    naivebayes,
+    dplyr
+VignetteBuilder: knitr

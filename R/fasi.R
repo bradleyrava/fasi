@@ -12,6 +12,10 @@
 #' @return A list where the first element is the observed data with an extra variable denoting which observation was selected for the training and calibration data set, second is the model fit, third the training data. fourth the calibration data and lastly the chosen ranking score algorithm.
 #' @author Bradley Rava. PhD Candidate at the University of Southern California's Marshall School of Business.
 #' Department of Data Sciences and Operations.
+#' @importFrom gam gam
+#' @importFrom stats glm
+#' @importFrom fastAdaboost adaboost
+#' @importFrom naivebayes nonparametric_naive_bayes
 #' @examples
 #' \donttest{
 #' fasi(observed_data, model_formula, split_p=0.5, alg="gam", class_label="y")
@@ -21,6 +25,13 @@ fasi <- function(observed_data, model_formula, split_p=0.5, alg="gam", class_lab
 
   ## Make sure the observed data set is a data frame
   observed_data <- as.data.frame(observed_data)
+
+  class_label_given <- observed_data[,which(colnames(observed_data)==class_label)]
+  class_label_given_unique <- sort(as.numeric(unique(class_label_given)))
+
+  if (class_label_given_unique[1] != 1 | class_label_given_unique[2] != 2) {
+    return(warning("The class labels must be 1 or 2. Please recode your class lable variable to be in this format."))
+  }
 
   ## Split the observed data into observed / calibrate by proportion split.
   obs_rows <- 1:nrow(observed_data)
@@ -48,7 +59,7 @@ fasi <- function(observed_data, model_formula, split_p=0.5, alg="gam", class_lab
     ## For logistic regression, 0<=y<=1
     train_data_logit <- train_data
     train_data_logit$y <- as.factor(as.numeric(train_data_logit$y) - 1)
-    model_fit <- stats::glm(model_formula, data = train_data_logit, family = binomial)
+    model_fit <- stats::glm(model_formula, data = train_data_logit, family = "binomial")
   }
   ## Adaboost fit
   else if (alg == "adaboost") {
@@ -86,9 +97,9 @@ fasi <- function(observed_data, model_formula, split_p=0.5, alg="gam", class_lab
 
 #' Prediction of a FASI Object
 #'
-#' After a model is trained with the fasi function,
+#' After a model is trained with the fasi function, predict estimates the r-scores and classification of all observations in the test data set.
 #'
-#' @param fasi_object An object of class fasi. It can be created from the fasi function.
+#' @param object An object of class fasi. It can be created from the fasi function.
 #' @param test_data The test data set that contains new observations to be classified.
 #' @param alpha_1 User specified group and overall FSR control for class 1.
 #' @param alpha_2 User specified group and overall FSR control for class 2.
@@ -99,6 +110,7 @@ fasi <- function(observed_data, model_formula, split_p=0.5, alg="gam", class_lab
 #' @param ranking_score_test A vector of ranking scores for the test data set. This should only be used if the built in ranking score algorithms are not used.
 #' @param indecision_choice A number, 1, 2, or 3. This determines how the indecisions are treated if we are equally confident in placing them in both class 1 and 2. Defaults to the scenario where class 2 is perfered.
 #' @param ... Additional arguments
+#' @importFrom stats predict
 #' @author Bradley Rava. PhD Candidate at the University of Southern California's Marshall School of Business.
 #' Department of Data Sciences and Operations.
 #' @examples
@@ -107,7 +119,7 @@ fasi <- function(observed_data, model_formula, split_p=0.5, alg="gam", class_lab
 #' predict(fasi_object, test_data, alpha_1=0.1, alpha_2=0.1)
 #' }
 #' @export
-predict.fasi <- function(fasi_object, test_data, alpha_1, alpha_2, rscore_plus=T, ptd_group_var="a", class_label="y",
+predict.fasi <- function(object, test_data, alpha_1, alpha_2, rscore_plus=T, ptd_group_var="a", class_label="y",
                          ranking_score_calibrate, ranking_score_test, indecision_choice = "2", ...) {
   ######################
   ## Warning Messages ##
@@ -126,7 +138,7 @@ predict.fasi <- function(fasi_object, test_data, alpha_1, alpha_2, rscore_plus=T
   ######################
 
   ## Pull out the calibrate data
-  calibrate_data <- fasi_object$calibrate_data
+  calibrate_data <- object$calibrate_data
 
   ## Make sure the test data set is a data frame
   if (is.data.frame(test_data) == F) {
@@ -137,14 +149,18 @@ predict.fasi <- function(fasi_object, test_data, alpha_1, alpha_2, rscore_plus=T
   class_1_label = 1
   class_2_label = 2
 
-  calibrate_data_withy <- fasi_object$calibrate_data
+  ## Alphas given
+  alpha_all <- c(alpha_1, alpha_2)
+  names(alpha_all) <- c("alpha_1", "alpha_2")
+
+  calibrate_data_withy <- object$calibrate_data
   calibrate_data_noy <- calibrate_data_withy[,-which(colnames(calibrate_data_withy)==class_label)]
 
   ## Use the model provided to estimate ranking scores
-  model_fit <- fasi_object$model_fit
+  model_fit <- object$model_fit
 
   ## GAM Fit
-  if (fasi_object$algorithm == "gam") {
+  if (object$algorithm == "gam") {
     ## Calibrate ranking scores
     logit_calibrate <- predict(model_fit, newdata = calibrate_data_noy)
     calibrate_data$s <- exp(logit_calibrate) / (1+exp(logit_calibrate))
@@ -154,7 +170,7 @@ predict.fasi <- function(fasi_object, test_data, alpha_1, alpha_2, rscore_plus=T
     test_data$s <- exp(logit_test) / (1+exp(logit_test))
   }
   ## Logistic Regression Fit
-  else if (fasi_object$algorithm == "logit") {
+  else if (object$algorithm == "logit") {
     ## Calibrate ranking scores
     logit_calibrate <- predict(model_fit, newdata = calibrate_data_noy)
     calibrate_data$s <- exp(logit_calibrate) / (1+exp(logit_calibrate))
@@ -164,18 +180,18 @@ predict.fasi <- function(fasi_object, test_data, alpha_1, alpha_2, rscore_plus=T
     test_data$s <- exp(logit_test) / (1+exp(logit_test))
   }
   ## Adaboost fit
-  else if (fasi_object$algorithm == "adaboost") {
+  else if (object$algorithm == "adaboost") {
     calibrate_data$s <- predict(model_fit, newdata = calibrate_data_noy)$prob[,2]
     test_data$s <- predict(model_fit, newdata = test_data)$prob[,2]
   }
   ## Nonparametric Naive Bayes
-  else if (fasi_object$algorithm == "nonparametric_nb") {
+  else if (object$algorithm == "nonparametric_nb") {
     calibrate_data$s <- predict(model_fit, newdata = data.matrix(calibrate_data_noy), type = "prob")[,2]
     test_data$s <- predict(model_fit, newdata = data.matrix(test_data), type = "prob")[,2]
   }
   ## User provided their own ranking score model
-  else if (fasi_object$algorithm == "user-provided") {
-    calibrate_data <- fasi_object$observed_data
+  else if (object$algorithm == "user-provided") {
+    calibrate_data <- object$observed_data
 
     calibrate_data$s <- ranking_score_calibrate
     test_data$s <- ranking_score_test
@@ -233,7 +249,8 @@ predict.fasi <- function(fasi_object, test_data, alpha_1, alpha_2, rscore_plus=T
 
   return_object <- list(r_scores=r_scores,
                         classification=classification_vector,
-                        rscore_plus=rscore_plus)
+                        rscore_plus=rscore_plus,
+                        alpha=alpha_all)
 
   class(return_object) <- "fasi"
 
@@ -270,7 +287,7 @@ rscore <- function(s_test_cur, y_class_cur, a_cur, z_cal, z_test, rscore_plus, r
   if (r2_indicator == T) {
     ## Numerator of r-score
     z_cal_acur <- z_cal[which(z_cal$a == a_cur),]
-    z_cal_acur_thresh <- z_cal_acur[which(z_cal$s >= s_test_cur),]
+    z_cal_acur_thresh <- z_cal_acur[which(z_cal_acur$s >= s_test_cur),]
     z_cal_acur_thresh_new <- z_cal_acur_thresh[which(z_cal_acur_thresh$y != y_class_cur),]
     ## Denominator of r-score (includes z_cal_acur_thresh above)
     z_test_acur <- z_test[which(z_test$a == a_cur),]
@@ -289,7 +306,7 @@ rscore <- function(s_test_cur, y_class_cur, a_cur, z_cal, z_test, rscore_plus, r
   } else {
     ## Numerator of r-score
     z_cal_acur <- z_cal[which(z_cal$a == a_cur),]
-    z_cal_acur_thresh <- z_cal_acur[which((1-z_cal$s) >= (1-s_test_cur)),]
+    z_cal_acur_thresh <- z_cal_acur[which((1-z_cal_acur$s) >= (1-s_test_cur)),]
     z_cal_acur_thresh_new <- z_cal_acur_thresh[which(z_cal_acur_thresh$y != y_class_cur),]
     ## Denominator of r-score (includes z_cal_acur_thresh above)
     z_test_acur <- z_test[which(z_test$a == a_cur),]

@@ -5,7 +5,7 @@
 \title{Prediction of a FASI Object}
 \usage{
 \method{predict}{fasi}(
-  fasi_object,
+  object,
   test_data,
   alpha_1,
   alpha_2,
@@ -19,7 +19,7 @@
 )
 }
 \arguments{
-\item{fasi_object}{An object of class fasi. It can be created from the fasi function.}
+\item{object}{An object of class fasi. It can be created from the fasi function.}
 
 \item{test_data}{The test data set that contains new observations to be classified.}
 
@@ -42,7 +42,7 @@
 \item{...}{Additional arguments}
 }
 \description{
-After a model is trained with the fasi function,
+After a model is trained with the fasi function, predict estimates the r-scores and classification of all observations in the test data set.
 }
 \examples{
 \donttest{

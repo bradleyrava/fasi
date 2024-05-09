@@ -3,7 +3,6 @@
 S3method(predict,fasi)
 export(fasi)
 export(rscore)
-importFrom(fastAdaboost,adaboost)
 importFrom(gam,gam)
 importFrom(naivebayes,nonparametric_naive_bayes)
 importFrom(stats,glm)

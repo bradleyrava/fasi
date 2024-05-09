@@ -23,7 +23,6 @@ RoxygenNote: 7.1.0
 Depends:
 	R (>= 3.5.0),
 	naivebayes,
-	fastAdaboost,
 	gam,
 	stats
 Suggests: 

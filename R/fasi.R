@@ -8,20 +8,18 @@
 #' @param split_p The proportion of your observed data that should be used for the training data set.
 #' @param alg A specified algorithm used to produce ranking scores. The options are "gam", "logit", "adaboost", "nonparametric_nb", and "user-provided".
 #' @param class_label The name of the class label variable in your data set. Defaults to "y".
-#' @param niter_adaboost The number of weak learners you want to use for the adaboost algorithm. Defaults to 10. This parameter is useless if you did not select the adaboost algorithm.
 #' @return A list where the first element is the observed data with an extra variable denoting which observation was selected for the training and calibration data set, second is the model fit, third the training data. fourth the calibration data and lastly the chosen ranking score algorithm.
 #' @author Bradley Rava. PhD Candidate at the University of Southern California's Marshall School of Business.
 #' Department of Data Sciences and Operations.
 #' @importFrom gam gam
 #' @importFrom stats glm
-#' @importFrom fastAdaboost adaboost
 #' @importFrom naivebayes nonparametric_naive_bayes
 #' @examples
 #' \donttest{
 #' fasi(observed_data, model_formula, split_p=0.5, alg="gam", class_label="y")
 #' }
 #' @export
-fasi <- function(observed_data, model_formula, split_p=0.5, alg="gam", class_label="y", niter_adaboost= 10) {
+fasi <- function(observed_data, model_formula, split_p=0.5, alg="gam", class_label="y") {
 
   ## Make sure the observed data set is a data frame
   observed_data <- as.data.frame(observed_data)
@@ -60,11 +58,6 @@ fasi <- function(observed_data, model_formula, split_p=0.5, alg="gam", class_lab
     train_data_logit <- train_data
     train_data_logit$y <- as.factor(as.numeric(train_data_logit$y) - 1)
     model_fit <- stats::glm(model_formula, data = train_data_logit, family = "binomial")
-  }
-  ## Adaboost fit
-  else if (alg == "adaboost") {
-    dta_train_adaboost <- cbind.data.frame(data.matrix(train_data_noy), y = y_train)
-    model_fit <- fastAdaboost::adaboost(model_formula, data=as.data.frame(dta_train_adaboost), nIter = niter_adaboost)
   }
   ## Nonparametric Naive Bayes
   else if (alg == "nonparametric_nb") {
@@ -178,11 +171,6 @@ predict.fasi <- function(object, test_data, alpha_1, alpha_2, rscore_plus=T, ptd
     ## Testing ranking scores
     logit_test <- predict(model_fit, newdata = test_data)
     test_data$s <- exp(logit_test) / (1+exp(logit_test))
-  }
-  ## Adaboost fit
-  else if (object$algorithm == "adaboost") {
-    calibrate_data$s <- predict(model_fit, newdata = calibrate_data_noy)$prob[,2]
-    test_data$s <- predict(model_fit, newdata = test_data)$prob[,2]
   }
   ## Nonparametric Naive Bayes
   else if (object$algorithm == "nonparametric_nb") {
